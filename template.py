@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-import logging
+from src.predictor_bot_score.logger import logger
 
 project_name = "predictor_bot_score"
 
@@ -24,7 +24,10 @@ for filepath in files:
     if file_dir != "":
         os.makedirs(file_dir, exist_ok=True)
 
-    logging.info(f"Creating directory: {file_dir} for file: {file_name}")
+    logger.info(f"Creating directory: {file_dir} for file: {file_name}")
 
-    with open(filepath, "w") as f:
-        pass
+    if not os.path.exists(filepath):
+        with open(filepath, "w") as f:
+            pass
+
+logger.info(f"Creating directory: Done")
