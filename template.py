@@ -1,30 +1,30 @@
 import os
-import sys
-from pathlib import Path 
-import logging 
+from pathlib import Path
+import logging
 
-project_name = 'predictor-bot-score'
+project_name = "predictor_bot_score"
+
 files = [
-
-    f'src/{project_name}/utils/__init__.py',
-    f'src/{project_name}/constants/__init__.py',
-    f'src/{project_name}/components/__init__.py',
-    f'src/{project_name}/logging/__init__.py',
-    f'src/{project_name}/entity/__init__.py',
-    f'src/{project_name}/config/__init__.py',
-    f"src/{project_name}/config/configuration.py"
-    'main.py'
+    f"src/{project_name}/utils/__init__.py",
+    f"src/{project_name}/constants/__init__.py",
+    f"src/{project_name}/components/__init__.py",
+    f"src/{project_name}/logger/__init__.py",   # renamed
+    f"src/{project_name}/entity/__init__.py",
+    f"src/{project_name}/config/__init__.py",
+    f"src/{project_name}/config/configuration.py",
+    "main.py"
 ]
 
-for i in files:
-    path = Path(i)
-    file_dir , file_name = os.path.split(path)
-    logging.info(f"Creating directory:{file_dir} for the file {file_name}")
+for filepath in files:
 
+    filepath = Path(filepath)
 
-    if file_dir != " ":
-        os.makedirs(file_dir,exist_ok=True)
-        with open(path,'w') as f:
-            pass 
+    file_dir, file_name = os.path.split(filepath)
 
+    if file_dir != "":
+        os.makedirs(file_dir, exist_ok=True)
 
+    logging.info(f"Creating directory: {file_dir} for file: {file_name}")
+
+    with open(filepath, "w") as f:
+        pass
