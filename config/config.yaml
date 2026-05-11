@@ -1,0 +1,7 @@
+artifacts_root: artifacts
+
+
+data_ingestion:
+  dataset_link  : "https://raw.githubusercontent.com/Samkumar24/End-to-End-Fashion-Recommendation-System-with-MLOps/refs/heads/main/Data_set/Amazon_Aesthetic_web_scrape.csv"
+  raw_data      : artifacts/data_ingestion/raw_data
+  ingested_data : artifacts/data_ingestion/ingested_data
