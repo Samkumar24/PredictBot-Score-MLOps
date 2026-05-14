@@ -1,4 +1,5 @@
 import yaml
+import os
 from pathlib import Path
 from ensure import ensure_annotations
 # New/Correct way
@@ -15,5 +16,37 @@ def yaml_load(pathlib : Path):
     except Exception as e:
         raise ValueError(f"Error occurred while reading yaml file: {pathlib}. Error: {e}")
         
+@ensure_annotations
+def create_directories(path_lib : list):
+    try:
+        for lists in path_lib:
+            os.makedirs(lists,exist_ok=True)
+        logger.info('logger.info(f"created directory at: {roles}")')
+    except Exception as e:
+        raise ValueError(f"Error occurred while reading yaml file: {path_lib}. Error: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
