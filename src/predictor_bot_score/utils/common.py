@@ -17,13 +17,13 @@ def yaml_load(pathlib : Path):
         raise ValueError(f"Error occurred while reading yaml file: {pathlib}. Error: {e}")
         
 @ensure_annotations
-def create_directories(path_lib : list):
+def create_directories(path_to_create: list):
     try:
-        for lists in path_lib:
-            os.makedirs(lists,exist_ok=True)
-        logger.info('logger.info(f"created directory at: {roles}")')
+        for path in path_to_create:
+            os.makedirs(path, exist_ok=True)
+            logger.info(f"Directory created (or already exists) at: {path}")
     except Exception as e:
-        raise ValueError(f"Error occurred while reading yaml file: {path_lib}. Error: {e}")
+        raise ValueError(f"Error occurred while creating directory: {path}. Error: {e}")
 
 
 
