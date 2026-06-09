@@ -6,3 +6,72 @@ data_ingestion:
   file_name     :   'Cloud_fare_Master_data.csv'
   raw_data      : artifacts/data_ingestion/raw_data
   ingested_data : artifacts/data_ingestion/ingested_data
+
+data_validation:
+  # --- paths ---
+  raw_data_folder : "artifacts/data_ingestion/raw_data/Cloud_fare_Master_data.csv"
+  validated_data  : "artifacts/data_validation/validated/"
+  quarantine_data : "artifacts/data_validation/quarantine/"
+  log_path        : "artifacts/data_validation/logs/log.json"
+
+  # --- step 1 : schema ---
+  expected_columns:
+    - timestamp
+    - bot_score
+
+  expected_dtypes:
+    timestamp : "datetime64[ns, UTC]"
+    bot_score : "float64"
+
+  # --- step 2 : data quality ---
+  missing_thresholds:
+    timestamp : 0.00        # zero nulls allowed ever
+    bot_score : 0.00        # zero nulls allowed ever
+
+  duplicate_timestamps: false   # no duplicate timestamps allowed
+
+  volume:
+    min_rows  : 96            # minimum 1 full day of data
+    max_rows  : 50000         # safety ceiling
+    expected  : 40705         # your full master dataset size
+
+  # --- step 3 : temporal ---
+  temporal:
+    interval_minutes  : 15      # every row must be exactly 15 min apart
+    max_gap_count     : 0       # zero missing intervals allowed
+    require_sorted    : true    # timestamp must be ascending
+
+  # --- step 4 : statistical ---
+  statistical:
+    baseline_mean     : 0.81    # df['bot_score'].mean()  from your EDA
+    baseline_std      : 0.09    # df['bot_score'].std()   from your EDA
+    drift_factor      : 2.0     # alert if mean shifts by > 2 * baseline_std
+    min_std           : 0.001   # flag if all values are suspiciously identical
+
+  # --- step 5 : feature validation ---
+  range_checks:
+    bot_score:
+      min : 0.0
+      max : 1.0
+
+  outlier_floor     : 0.50      # 1st percentile from your EDA (np.percentile = 0.536)
+  max_step_drop     : 0.20      # max allowed drop between two consecutive rows
+
+  # --- step 6 : business logic ---
+  business_logic:
+    allow_cold_start      : true    # first row = 1.0 is valid (your data starts at 1.0)
+    known_anomaly_score   : 0.0     # rows with exactly 0.0 → hard quarantine (Aug 2025)
+    max_identical_pct     : 0.50    # flag if >50% rows share the same score
+    rolling_mean_floor    : 0.65    # 24hr rolling mean should never go below this
+    rolling_window        : 96      # 96 x 15min = 24 hours
+
+  # --- outcome routing ---
+  hard_fail_checks:               # these → quarantine_data + log
+    - schema
+    - data_quality
+
+  soft_fail_checks:               # these → validated_data + log warning
+    - temporal
+    - statistical
+    - feature_validation
+    - business_logic  
