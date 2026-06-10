@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import os
 import boto3
-from src.predictor_bot_score.entity import Data_injestion_config
+from src.predictor_bot_score.entity import (Data_injestion_config,
+                                            DataValidationConfig,DataTransformationConfig)
 
 class yaml_configruation:
 
@@ -27,3 +28,51 @@ class yaml_configruation:
             ingested_data = config_path.ingested_data
 
         )
+
+    def get_data_validation_config(self):
+
+        config = self.config_path.data_validation
+
+        create_directories([config.validated_data , config.quarantine_data])
+        
+        data_validation_config = DataValidationConfig(
+            raw_data_path=Path(config.raw_data_folder),
+            validated_data=Path(config.validated_data),
+            quarantine_data=Path(config.quarantine_data),
+            log_path=Path(config.log_path),
+            
+            expected_columns=config.expected_columns,
+            expected_dtypes=config.expected_dtypes,
+            
+            missing_thresholds=config.missing_thresholds,
+            allow_duplicate_timestamps=config.duplicate_timestamps,
+            volume=config.volume,
+            
+            temporal=config.temporal,
+            statistical=config.statistical,
+            
+            range_checks=config.range_checks,
+            outlier_floor=config.outlier_floor,
+            max_step_drop=config.max_step_drop,
+            
+            business_logic=config.business_logic,
+            hard_fail_checks=config.hard_fail_checks,
+            soft_fail_checks=config.soft_fail_checks
+        )
+        
+        return data_validation_config
+    
+    def get_data_transformation_config(self):
+
+        config = self.config_path.data_transformation
+
+        create_directories([config.transformed_data])
+
+        data_transformation_config = DataTransformationConfig(
+            validated_data_path=Path(config.validated_data_path),
+            transformed_data_dir =Path(config.transformed_data)
+        )
+        
+        return data_transformation_config
+
+
