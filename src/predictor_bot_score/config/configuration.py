@@ -6,8 +6,7 @@ from pathlib import Path
 import os
 import boto3
 from src.predictor_bot_score.entity import (Data_injestion_config,
-                                            DataValidationConfig)
-from src.predictor_bot_score.entity import Data_injestion_config
+                                            DataValidationConfig,DataTransformationConfig)
 
 class yaml_configruation:
 
@@ -62,3 +61,18 @@ class yaml_configruation:
         )
         
         return data_validation_config
+    
+    def get_data_transformation_config(self):
+
+        config = self.config_path.data_transformation
+
+        create_directories([config.transformed_data])
+
+        data_transformation_config = DataTransformationConfig(
+            validated_data_path=Path(config.validated_data_path),
+            transformed_data_dir =Path(config.transformed_data)
+        )
+        
+        return data_transformation_config
+
+

@@ -73,7 +73,7 @@ class Data_validation:
         except Exception as e:
             logger.error(f"Validation pipeline aborted: {str(e)}")
             raise
-        
+
     def read_data(self):
         try:
             logger.info(f"Attempting to read data from: {self.config.raw_data_path}")
@@ -252,7 +252,7 @@ class Data_validation:
 
             folder.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            out_path  = folder / f"{label}_{timestamp}.csv"
+            out_path  = folder / f"{label}.csv"
 
             self.df.to_csv(out_path, index=False)
             logger.info(f"Data saved  {out_path}")

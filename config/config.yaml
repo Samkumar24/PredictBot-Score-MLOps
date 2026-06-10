@@ -75,3 +75,8 @@ data_validation:
     - statistical
     - feature_validation
     - business_logic  
+
+data_transformation:
+  validated_data_path : 'artifacts/data_validation/validated/validated.csv'
+  transformed_data: 'artifacts/data_transformation/transformed_data' 
+

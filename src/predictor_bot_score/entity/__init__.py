@@ -47,3 +47,7 @@ class DataValidationConfig:
     hard_fail_checks : list[str]
     soft_fail_checks : list[str]
 
+@dataclass(frozen=True)
+class DataTransformationConfig:
+    validated_data_path: Path
+    transformed_data_dir: Path
