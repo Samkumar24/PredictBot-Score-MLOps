@@ -51,3 +51,16 @@ class DataValidationConfig:
 class DataTransformationConfig:
     validated_data_path: Path
     transformed_data_dir: Path
+
+@dataclass(frozen=True)
+class FeatureEngineeringConfig:
+    transformed_data_path : Path
+    featured_data_dir     : Path
+    featured_raw_data     : Path
+    train_data            : Path
+    val_data              : Path
+    test_data             : Path
+    features              : list[str]
+    lag_columns           : dict[str, int]
+    rolling               : dict[str, int]
+    target_column         : str

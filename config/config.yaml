@@ -80,3 +80,31 @@ data_transformation:
   validated_data_path : 'artifacts/data_validation/validated/validated.csv'
   transformed_data: 'artifacts/data_transformation/transformed_data' 
 
+feature_engineering:
+  transformed_data_path : "artifacts/data_transformation/transformed_data/"
+  featured_data_dir     : "artifacts/feature_engineering/featured/"
+  featured_raw_data     : "artifacts/feature_engineering/featured/featured_raw_data"
+  train_data            : "artifacts/feature_engineering/featured/train_data"
+  test_data             : "artifacts/feature_engineering/featured/test_data"
+  validation_data       : "artifacts/feature_engineering/featured/Validation_data"
+
+  features:
+    - lag_1
+    - lag_2
+    - lag_3
+    - lag_4
+    - lag_96
+    - rolling_std_4
+    
+
+  lag_columns:
+    lag_1  : 1
+    lag_2  : 2
+    lag_3  : 3
+    lag_4  : 4
+    lag_96 : 96
+
+  rolling:
+    rolling_std_4 : 4
+
+  target_column : "bot_score"

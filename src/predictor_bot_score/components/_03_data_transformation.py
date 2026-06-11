@@ -35,18 +35,45 @@ class Data_transformation:
             logger.info("DATA TRANSFORMATION PIPELINE STARTED")
             logger.info("=" * 50)
 
+            
+            logger.info("STEP 1 - TYPE CONVERSION")
+            logger.info("-" * 50)
             self.data["timestamp"] = pd.to_datetime(self.data["timestamp"], utc=True)
-
             self.data["bot_score"] = self.data["bot_score"].astype(float)
+            logger.info("PASSED - Types converted")
 
-            timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            out_path  = self.config.transformed_data_dir / f"_{timestamp}.csv"
+            
+            logger.info("STEP 2 - SORT BY TIMESTAMP")
+            logger.info("-" * 50)
+            self.data = self.data.sort_values("timestamp").reset_index(drop=True)
+            logger.info("PASSED - Data sorted")
 
+            
+            logger.info("STEP 3 - DROP DUPLICATES")
+            logger.info("-" * 50)
+            before = len(self.data)
+            self.data = self.data.drop_duplicates(subset="timestamp")
+            after = len(self.data)
+            logger.info(f"PASSED - Removed {before - after} duplicate rows")
 
-            self.data.to_csv(out_path,index=False)
-            logger.info(f"Data saved  {out_path}")
-            logger.info(f"DATA TRANSFORMATION DONE")
+            
+            logger.info("STEP 4 - DROP NULLS")
+            logger.info("-" * 50)
+            self.data = self.data.dropna().reset_index(drop=True)
+            logger.info(f"PASSED - {len(self.data)} clean rows remaining")
 
-        
+            # save
+            #timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
+            out_path  = os.path.join(
+                self.config.transformed_data_dir,
+                f"transformed.csv"
+            )
+            self.data.to_csv(out_path, index=False)
+            logger.info(f"Data saved - {out_path}")
+            logger.info("=" * 50)
+            logger.info("DATA TRANSFORMATION COMPLETE")
+            
+
         except Exception as e:
-            logger.info(e)
+            logger.error(f"Data transformation failed: {str(e)}")
+            raise
