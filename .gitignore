@@ -25,6 +25,11 @@ models/
 *.pkl
 *.joblib
 
+# ml flow
+mlflow.db
+mlruns/
+*.pkl
+
 # Dataset folders
 data/
 datasets/
