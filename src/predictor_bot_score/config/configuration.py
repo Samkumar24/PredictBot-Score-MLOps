@@ -7,7 +7,8 @@ import os
 import boto3
 from src.predictor_bot_score.entity import (Data_injestion_config,
                                             DataValidationConfig,DataTransformationConfig,
-                                            FeatureEngineeringConfig)
+                                            FeatureEngineeringConfig,
+                                            ModelTrainingConfig)
 
 class yaml_configruation:
 
@@ -101,3 +102,23 @@ class yaml_configruation:
             target_column         = config.target_column,
         )
 
+    def get_model_training_config(self) -> ModelTrainingConfig:
+
+        config = self.config_path.model_training
+
+        create_directories([config.model_dir])
+
+        return ModelTrainingConfig(
+            train_data_path     = Path(config.train_data_path),
+            val_data_path       = Path(config.val_data_path),
+            test_data_path      = Path(config.test_data_path),
+            model_dir           = Path(config.model_dir),
+            features            = list(config.features),
+            target_column       = config.target_column,
+            baseline_mae        = float(config.baseline_mae),
+            promotion_threshold = float(config.promotion_threshold),
+            lgbm_params         = dict(config.lgbm_params),
+            mlflow_experiment   = config.mlflow.experiment_name,
+            mlflow_tracking_uri = config.mlflow.tracking_uri
+        )
+        

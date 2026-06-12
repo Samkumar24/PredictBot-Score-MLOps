@@ -145,4 +145,4 @@ model_training:
 
   mlflow:
     experiment_name : "predict-bot-training"
-    tracking_uri    : "mlruns"
+    tracking_uri    : "sqlite:///mlflow.db"

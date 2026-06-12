@@ -64,3 +64,17 @@ class FeatureEngineeringConfig:
     lag_columns           : dict[str, int]
     rolling               : dict[str, int]
     target_column         : str
+
+@dataclass(frozen=True)
+class ModelTrainingConfig:
+    train_data_path      : Path
+    val_data_path        : Path
+    test_data_path       : Path
+    model_dir            : Path
+    features             : list[str]
+    target_column        : str
+    baseline_mae         : float
+    promotion_threshold  : float
+    lgbm_params          : dict
+    mlflow_experiment    : str
+    mlflow_tracking_uri  : str
