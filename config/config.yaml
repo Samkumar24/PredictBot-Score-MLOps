@@ -108,3 +108,41 @@ feature_engineering:
     rolling_std_4 : 4
 
   target_column : "bot_score"
+
+model_training:
+  train_data_path : "artifacts/feature_engineering/featured/train_data/"
+  val_data_path   : "artifacts/feature_engineering/featured/Validation_data/"
+  test_data_path  : "artifacts/feature_engineering/featured/test_data/"
+  model_dir       : "artifacts/models_directory/"
+
+  features:
+    - lag_1
+    - lag_2
+    - lag_3
+    - lag_4
+    - lag_96
+    - rolling_std_4
+
+  target_column : "bot_score"
+
+  baseline_mae       : 0.0199
+  promotion_threshold: 0.10        # must beat baseline by 10%
+
+  lgbm_params:
+    objective         : "regression"
+    metric            : "mae"
+    n_estimators      : 2000
+    learning_rate     : 0.01
+    num_leaves        : 63
+    max_depth         : 8
+    min_child_samples : 30
+    subsample         : 0.9
+    colsample_bytree  : 0.9
+    reg_alpha         : 0.5
+    reg_lambda        : 0.5
+    random_state      : 42
+    verbose           : -1
+
+  mlflow:
+    experiment_name : "predict-bot-training"
+    tracking_uri    : "mlruns"

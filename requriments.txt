@@ -1,2 +1,5 @@
 pandas
 numpy
+mlflow.lightgbm
+mlflow
+lightgbm
