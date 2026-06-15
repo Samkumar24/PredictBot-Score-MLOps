@@ -146,3 +146,27 @@ model_training:
   mlflow:
     experiment_name : "predict-bot-training"
     tracking_uri    : "sqlite:///mlflow.db"
+
+model_evaluation:
+  test_data_path  : "artifacts/feature_engineering/featured/test_data/"
+  model_dir       : "artifacts/models_directory/"
+  champion_path   : "artifacts/models_directory/champion.pkl"
+  report_dir      : "artifacts/models_directory/evaluation_results/"
+
+  features:
+    - lag_1
+    - lag_2
+    - lag_3
+    - lag_4
+    - lag_96
+    - rolling_std_4
+
+  target_column        : "bot_score"
+  baseline_mae         : 0.0199
+  improvement_threshold: 0.08        # 8% improvement required
+  champion_threshold   : 0.05        # 5% better than champion to promote
+  spike_threshold      : 0.60        # bot_score below this = spike row
+
+  mlflow:
+    experiment_name : "predict-bot-training"
+    tracking_uri    : "sqlite:///mlflow.db"
