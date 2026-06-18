@@ -1,7 +1,7 @@
 # src/predictor_bot_score/utils/model_factory.py
 
 import lightgbm as lgb
-#import xgboost as xgb
+import xgboost as xgb
 import mlflow.lightgbm
 import mlflow.xgboost
 import mlflow.sklearn
@@ -28,7 +28,8 @@ from pathlib import Path
 #   model_training.py is never touched
 
 MODEL_REGISTRY = {
-    "lightgbm"      : lgb.LGBMRegressor
+    "lightgbm"      : lgb.LGBMRegressor,
+    "xgboost"   : xgb.XGBRegressor
 
 }
 
@@ -68,7 +69,6 @@ EARLY_STOPPING_REGISTRY = {
         ]
     },
     "xgboost"  : {
-        "early_stopping_rounds" : 100,
         "verbose"               : False
     },
     "random_forest" : {},
