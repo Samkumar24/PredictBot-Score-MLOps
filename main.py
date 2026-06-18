@@ -5,7 +5,6 @@ from src.predictor_bot_score.components._04_feature_enginerring import Feature_e
 from src.predictor_bot_score.components._05_model_building import Model_Building
 from src.predictor_bot_score.config.configuration import (yaml_configruation)
 from src.predictor_bot_score.logger import logger
-from src.predictor_bot_score.components._01_data_injestion  import Data_injestion
 from src.predictor_bot_score.entity import Data_injestion_config
 from src.predictor_bot_score.config.configuration import yaml_configruation
 

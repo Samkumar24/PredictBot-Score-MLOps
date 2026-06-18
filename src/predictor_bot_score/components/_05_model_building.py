@@ -3,8 +3,10 @@ from pathlib import Path
 from src.predictor_bot_score.config.configuration import yaml_load , create_directories
 from src.predictor_bot_score.logger import logger
 from src.predictor_bot_score.constants import CONFIG_PATH
-from src.predictor_bot_score.entity import ModelTrainingConfig
+from src.predictor_bot_score.utils.model_factory import get_model , get_fit_kwargs , get_mlflow_logger , MODEL_REGISTRY
+from sklearn.metrics import mean_absolute_error
 import os
+import numpy as np
 import pandas as pd
 import glob
 import mlflow
@@ -12,6 +14,8 @@ import lightgbm
 import pickle
 from datetime import datetime
 import sqlite3
+import gc
+from src.predictor_bot_score.entity import ModelTrainingConfig
 
 class Model_Building :
 
@@ -51,7 +55,7 @@ class Model_Building :
             logger.error(f"Failed to read splits: {str(e)}")
             raise
 
-    def prepare_Data(self ,df :pd.DataFrame):
+    def prepare_data(self ,df :pd.DataFrame):
         try:
             X = df[self.config.features]
             y = df[self.config.target_column]
@@ -59,45 +63,84 @@ class Model_Building :
             return X ,y
         except Exception as e:
             raise e 
-    
-    def model_training(self):
-
+        
+    def _smape(self, actual , predicted ):
         try:
-
-            X_train, y_train = self.prepare_Data(self.train)
-            X_val,   y_val   = self.prepare_Data(self.val)
-
-            model = lightgbm.LGBMRegressor(**self.config.lgbm_params)
-            model.fit(
-                X_train , y_train,
-                eval_set=[(X_val , y_val)],
-                callbacks = [
-                    lightgbm.early_stopping(100, verbose=False)
-                   
-                ]
+            sampe_result = float(
+                100 * np.mean(
+                    2 * np.abs(predicted - actual) /
+                    (np.abs(actual) + np.abs(predicted) + 1e-8)
+                )
             )
 
-            logger.info(f"Best iteration : {model.best_iteration_}")
-            logger.info("PASSED - Model trained")
-            logger.info("-" * 50)
+            return sampe_result
+        except Exception as e:
+            logger.error(f"SMAPE calculation failed: {str(e)}")
+            raise 
+    
+    def model_training(self):
+        try:
+            X_train, y_train = self.prepare_data(self.train)
+            X_val,   y_val   = self.prepare_data(self.val)
 
-            return model
+            trained_models = {}
+
+            for model_name, cfg in self.config.models.items():
+                model_type   = cfg["type"]
+                model_params = cfg["params"]
+
+                if model_type not in MODEL_REGISTRY:
+                    logger.warning(
+                        f"Skipping {model_name}: '{model_type}' not in registry"
+                    )
+                    continue
+
+                logger.info("")
+                logger.info(f"--- Training {model_name} ({model_type}) ---")
+                logger.info("-" * 50)
+
+                model      = get_model(model_type, model_params)
+                eval_set   = [(X_val, y_val)]
+                fit_kwargs = get_fit_kwargs(model_type, eval_set)
+
+                model.fit(X_train, y_train, **fit_kwargs)
+
+                val_pred  = model.predict(X_val)
+                val_mae   = float(mean_absolute_error(y_val, val_pred))
+                val_smape = self._smape(y_val.values, val_pred)
+
+                trained_models[model_name] = {
+                    "model"      : model,
+                    "model_type" : model_type,
+                    "params"     : model_params,
+                    "val_mae"    : val_mae,
+                    "val_smape"  : val_smape,
+                }
+
+                logger.info(f"{model_name} VAL MAE   : {val_mae}")
+                logger.info(f"{model_name} VAL SMAPE : {val_smape}")
+                logger.info(f"PASSED - {model_name} trained")
+
+            return trained_models
 
         except Exception as e:
             logger.error(f"Training failed: {str(e)}")
             raise
     
-    def save_model(self,model):
+    def save_model(self,model , model_name):
 
         try:
             path = self.config.model_dir
             time_stamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            model_path = os.path.join(path,f"{time_stamp}.pkl")
+            model_path = os.path.join(path,f"{model_name}__{time_stamp}.pkl")
 
+            os.makedirs(path , exist_ok=True)
+            
             with open(model_path ,"wb") as f:
                 pickle.dump(model , f)
+                f.close()
         
-            logger.info(f"Model saved ")
+            logger.info(f"Model saved  {model_path}")
             logger.info("PASSED - Model saved")
             logger.info("-" * 50)
 
@@ -108,30 +151,31 @@ class Model_Building :
             raise
 
     # ── log to mlflow ─────────────────────────────────────
-    def log_to_mlflow(self, model, model_path):
+    def log_to_mlflow(self, model_name, result: dict, model_path: str):
         try:
             logger.info("")
-            logger.info("STEP 3 - LOGGING TO MLFLOW")
+            logger.info(f"fLOGGING {model_name} TO MLFLOW")
             logger.info("-" * 50)
 
             mlflow.set_tracking_uri(self.config.mlflow_tracking_uri)
             mlflow.set_experiment(self.config.mlflow_experiment)
 
-            with mlflow.start_run():
+            with mlflow.start_run(run_name=model_name):
 
-                mlflow.log_params(self.config.lgbm_params)
+                mlflow.log_params(result['params'])
 
-                mlflow.set_tag("stage",      "Staging")
-                mlflow.set_tag("trained_at", datetime.now().isoformat())
-                mlflow.set_tag("model_path", model_path)
+                mlflow.log_metric("val_mae",   result["val_mae"])
+                mlflow.log_metric("val_smape", result["val_smape"])
 
+                # tags
+                mlflow.set_tag("model_type",  result["model_type"])
+                mlflow.set_tag("stage",       "Staging")
+                mlflow.set_tag("trained_at",  datetime.now().isoformat())
+                mlflow.set_tag("model_path",  model_path)
 
-                mlflow.lightgbm.log_model(
-                    model,
-                    "model",
-                    registered_model_name="Predicted_model_name"
-
-                )
+                model_log = get_mlflow_logger(result['model_type'])
+                model_log(result['model'],artifact_path="model")
+                
             logger.info("PASSED - MLflow logging complete")
             logger.info("-" * 50)
 
@@ -140,23 +184,64 @@ class Model_Building :
             raise
 
     def run(self):
-        
+        trained_models = None
+
         try:
             logger.info("=" * 50)
-            logger.info("MODEL TRAINING PIPELINE STARTED")
+            logger.info(f'{"=" * 50},MODEL TRAINING PIPELINE STARTED')
             logger.info("=" * 50)
 
-            model = self.model_training()
-            model_save = self.save_model(model)
-            self.log_to_mlflow(model , model_path=model_save)
+            trained_models = self.model_training()
 
+            logger.info("")
+            logger.info("=" * 50)
+            logger.info("TRAINING SUMMARY")
+            logger.info("=" * 50)
+            for name, res in trained_models.items():
+                logger.info(
+                    f"{name} MAE: {res['val_mae']}  "
+                    f"SMAPE: {res['val_smape']}"
+                )
+
+            logger.info("")
+            logger.info("=" * 50)
+            logger.info("SAVING AND LOGGING ALL MODELS")
+            logger.info("=" * 50)
+
+            for model_name, result in trained_models.items():
+                
+                model_path = self.save_model(result["model"], model_name) ## this function creates the model which acts as the input for mext self.log_mlflow
+                
+                self.log_to_mlflow(model_name, result, model_path)
+
+            logger.info("")
             logger.info("=" * 50)
             logger.info("MODEL TRAINING PIPELINE COMPLETE")
             logger.info("=" * 50)
 
+            return None
+
         except Exception as e:
             logger.error(f"Model training pipeline failed: {str(e)}")
             raise
+
+        finally:
+            if trained_models is not None:
+                for res in trained_models.values():
+                    res["model"] = None
+                trained_models = None
+
+            self.train = None
+            self.val   = None
+            gc.collect()
+            logger.info("Memory cleared")
+            logger.info(f'{"=" * 50},MODEL TRAINING PIPELINE COMPLETED')
+
+
+
+             
+
+   
 
 
 

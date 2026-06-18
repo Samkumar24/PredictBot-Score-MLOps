@@ -46,7 +46,8 @@ MODEL_REGISTRY = {
 # calls it — no if/elif needed anywhere
 
 MLFLOW_LOGGER_REGISTRY = {
-    "lightgbm"      : mlflow.lightgbm.log_model
+    "lightgbm"      : mlflow.lightgbm.log_model,
+    "xgboost"       : mlflow.xgboost.log_model
 }
 
 

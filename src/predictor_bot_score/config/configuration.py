@@ -109,16 +109,16 @@ class yaml_configruation:
         create_directories([config.model_dir])
 
         return ModelTrainingConfig(
-            train_data_path     = Path(config.train_data_path),
-            val_data_path       = Path(config.val_data_path),
-            test_data_path      = Path(config.test_data_path),
-            model_dir           = Path(config.model_dir),
-            features            = list(config.features),
-            target_column       = config.target_column,
-            baseline_mae        = float(config.baseline_mae),
-            promotion_threshold = float(config.promotion_threshold),
-            lgbm_params         = dict(config.lgbm_params),
-            mlflow_experiment   = config.mlflow.experiment_name,
-            mlflow_tracking_uri = config.mlflow.tracking_uri
+        train_data_path       = Path(config.train_data_path),
+        val_data_path         = Path(config.val_data_path),
+        model_dir             = Path(config.model_dir),
+        active_model_strategy = config.active_model_strategy,
+        models                = dict(config.models),
+        features              = list(config.features),
+        target_column         = config.target_column,
+        baseline_mae          = float(config.baseline_mae),
+        promotion_criteria    = dict(config.promotion_criteria),
+        mlflow_experiment     = config.mlflow.experiment_name,
+        mlflow_tracking_uri   = config.mlflow.tracking_uri
         )
         

@@ -67,14 +67,14 @@ class FeatureEngineeringConfig:
 
 @dataclass(frozen=True)
 class ModelTrainingConfig:
-    train_data_path      : Path
-    val_data_path        : Path
-    test_data_path       : Path
-    model_dir            : Path
-    features             : list[str]
-    target_column        : str
-    baseline_mae         : float
-    promotion_threshold  : float
-    lgbm_params          : dict
-    mlflow_experiment    : str
-    mlflow_tracking_uri  : str
+    train_data_path       : Path
+    val_data_path         : Path
+    model_dir             : Path
+    active_model_strategy : str
+    models                : dict
+    features              : list[str]
+    target_column         : str
+    baseline_mae          : float
+    promotion_criteria    : dict
+    mlflow_experiment     : str
+    mlflow_tracking_uri   : str
