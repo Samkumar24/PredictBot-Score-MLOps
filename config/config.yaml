@@ -82,7 +82,7 @@ data_transformation:
 
 feature_engineering:
   transformed_data_path : "artifacts/data_transformation/transformed_data/"
-  featured_data_dir     : "artifacts/feature_engineering/featured/"
+  featured_data_dir     : "artifacts/feature_engineering/featured"
   featured_raw_data     : "artifacts/feature_engineering/featured/featured_raw_data"
   train_data            : "artifacts/feature_engineering/featured/train_data"
   test_data             : "artifacts/feature_engineering/featured/test_data"
@@ -113,7 +113,7 @@ model_training:
   train_data_path : "artifacts/feature_engineering/featured/train_data/"
   val_data_path   : "artifacts/feature_engineering/featured/Validation_data/"
   test_data_path  : "artifacts/feature_engineering/featured/test_data/"
-  model_dir       : "artifacts/models_directory/models"
+  model_dir       : "artifacts/Model_Building"
 
   active_model_strategy : "best_of_k"
 
@@ -174,10 +174,11 @@ model_training:
     tracking_uri    : "sqlite:///mlflow.db"
 
 model_evaluation:
-  test_data_path  : "artifacts/feature_engineering/featured/test_data/"
-  model_dir       : "artifacts/models_directory/"
-  champion_path   : "artifacts/models_directory/champion.pkl"
-  report_dir      : "artifacts/models_directory/evaluation_results/"
+  test_data_path      : "artifacts/feature_engineering/featured/test_data/"
+  model_dir           : "artifacts/Model_Building/"
+  model_eval_dir      : "artifacts/Model_evaluation/"
+  champion_path       : "artifacts/Model_evaluation/champion.pkl"
+  model_eval_results  : "artifacts/Model_evaluation/evaluation_results/"
 
   features:
     - lag_1
@@ -188,6 +189,7 @@ model_evaluation:
     - rolling_std_4
 
   target_column        : "bot_score"
+  baseline_feature     : "lag_1"
   baseline_mae         : 0.0199
   improvement_threshold: 0.08        # 8% improvement required
   champion_threshold   : 0.05        # 5% better than champion to promote

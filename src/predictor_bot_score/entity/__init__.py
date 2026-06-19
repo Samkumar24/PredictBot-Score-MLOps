@@ -78,3 +78,5 @@ class ModelTrainingConfig:
     promotion_criteria    : dict
     mlflow_experiment     : str
     mlflow_tracking_uri   : str
+
+    
