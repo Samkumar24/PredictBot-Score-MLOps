@@ -118,7 +118,7 @@ model_training:
   active_model_strategy : "best_of_k"
 
   models:
-    lightgbm_v1:
+    lightgbm:
       type   : "lightgbm"
       params :
         objective         : "regression"
@@ -135,7 +135,7 @@ model_training:
         random_state      : 42
         verbose           : -1
 
-    xgboost_v1:
+    xgboost:
       type   : "xgboost"
       params :
         objective        : "reg:absoluteerror"
@@ -175,6 +175,7 @@ model_training:
 
 model_evaluation:
   test_data_path      : "artifacts/feature_engineering/featured/test_data/"
+  validation_data_path: "artifacts/feature_engineering/featured/Validation_data/"
   model_dir           : "artifacts/Model_Building/"
   model_eval_dir      : "artifacts/Model_evaluation/"
   champion_path       : "artifacts/Model_evaluation/champion.pkl"

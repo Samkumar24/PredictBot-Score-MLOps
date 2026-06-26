@@ -1,0 +1,47 @@
+{
+    "lightgbm": {
+        "params": {
+            "objective": "regression",
+            "metric": "mae",
+            "n_estimators": 2000,
+            "learning_rate": 0.01,
+            "num_leaves": 63,
+            "max_depth": 8,
+            "min_child_samples": 30,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9,
+            "reg_alpha": 0.5,
+            "reg_lambda": 0.5,
+            "random_state": 42,
+            "verbose": -1
+        },
+        "metrics": {
+            "val_mae": 0.016508719832367333,
+            "val_smape": 2.0608220568842763,
+            "test_mae": 0.018283242290870402,
+            "test_smape": 2.293507581733747
+        },
+        "timestamp": "2026-06-26T17:46:07.655664"
+    },
+    "xgboost": {
+        "params": {
+            "objective": "reg:absoluteerror",
+            "n_estimators": 2000,
+            "learning_rate": 0.01,
+            "max_depth": 8,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9,
+            "reg_alpha": 0.5,
+            "reg_lambda": 0.5,
+            "random_state": 42,
+            "verbosity": 0
+        },
+        "metrics": {
+            "val_mae": 0.016260750435210247,
+            "val_smape": 2.069741605217532,
+            "test_mae": 0.017787176430370855,
+            "test_smape": 2.2300725996959576
+        },
+        "timestamp": "2026-06-26T17:46:16.679307"
+    }
+}
