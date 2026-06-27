@@ -170,7 +170,7 @@ model_training:
     mlflow_registry_name          : "predict-bot-champion"
 
   mlflow:
-    experiment_name : "predict-bot-training"
+    experiment_name : "predict-bot-training-v1"
     tracking_uri    : "sqlite:///mlflow.db"
 
 model_evaluation:
@@ -197,5 +197,5 @@ model_evaluation:
   spike_threshold      : 0.60        # bot_score below this = spike row
 
   mlflow:
-    experiment_name : "predict-bot-training"
+    experiment_name : "predict-bot-training-v1"
     tracking_uri    : "sqlite:///mlflow.db"

@@ -17,11 +17,14 @@ import sqlite3
 import gc
 from src.predictor_bot_score.entity import ModelTrainingConfig
 
+
+
 class Model_Building :
 
     def __init__(self, config : ModelTrainingConfig):
         self.config = config
         self.train , self.val = self._read_data()
+        self.batch_id = datetime.now().strftime("%Y_%m_%d_%H") 
 
     def _get_files(self , folder:Path ,prefix :str):
         files = glob.glob(os.path.join(folder ,f"{prefix}_*.csv"))
@@ -105,20 +108,13 @@ class Model_Building :
 
                 model.fit(X_train, y_train, **fit_kwargs)
 
-                val_pred  = model.predict(X_val)
-                val_mae   = float(mean_absolute_error(y_val, val_pred))
-                val_smape = self._smape(y_val.values, val_pred)
 
                 trained_models[model_name] = {
                     "model"      : model,
                     "model_type" : model_type,
-                    "params"     : model_params,
-                    "val_mae"    : val_mae,
-                    "val_smape"  : val_smape,
+                    "params"     : model_params
                 }
 
-                logger.info(f"{model_name} VAL MAE   : {val_mae}")
-                logger.info(f"{model_name} VAL SMAPE : {val_smape}")
                 logger.info(f"PASSED - {model_name} trained")
 
             return trained_models
@@ -131,10 +127,13 @@ class Model_Building :
 
         try:
             path = self.config.model_dir
-            time_stamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            model_path = os.path.join(path,f"{model_name}__{time_stamp}.pkl")
+            time_stamp = datetime.now().strftime("%Y_%m_%d_%H")
+            
 
-            os.makedirs(path , exist_ok=True)
+            run_dir = os.path.join(path ,f'run__{time_stamp}')
+            os.makedirs(run_dir , exist_ok=True)
+
+            model_path = os.path.join(run_dir,f"{model_name}.pkl")
             
             with open(model_path ,"wb") as f:
                 pickle.dump(model , f)
@@ -151,37 +150,7 @@ class Model_Building :
             raise
 
     # ── log to mlflow ─────────────────────────────────────
-    def log_to_mlflow(self, model_name, result: dict, model_path: str):
-        try:
-            logger.info("")
-            logger.info(f"fLOGGING {model_name} TO MLFLOW")
-            logger.info("-" * 50)
 
-            mlflow.set_tracking_uri(self.config.mlflow_tracking_uri)
-            mlflow.set_experiment(self.config.mlflow_experiment)
-
-            with mlflow.start_run(run_name=model_name):
-
-                mlflow.log_params(result['params'])
-
-                mlflow.log_metric("val_mae",   result["val_mae"])
-                mlflow.log_metric("val_smape", result["val_smape"])
-
-                # tags
-                mlflow.set_tag("model_type",  result["model_type"])
-                mlflow.set_tag("stage",       "Staging")
-                mlflow.set_tag("trained_at",  datetime.now().isoformat())
-                mlflow.set_tag("model_path",  model_path)
-
-                model_log = get_mlflow_logger(result['model_type'])
-                model_log(result['model'],artifact_path="model")
-                
-            logger.info("PASSED - MLflow logging complete")
-            logger.info("-" * 50)
-
-        except Exception as e:
-            logger.error(f"MLflow logging failed: {str(e)}")
-            raise
 
     def run(self):
         trained_models = None
@@ -197,11 +166,7 @@ class Model_Building :
             logger.info("=" * 50)
             logger.info("TRAINING SUMMARY")
             logger.info("=" * 50)
-            for name, res in trained_models.items():
-                logger.info(
-                    f"{name} MAE: {res['val_mae']}  "
-                    f"SMAPE: {res['val_smape']}"
-                )
+            
 
             logger.info("")
             logger.info("=" * 50)
@@ -212,8 +177,6 @@ class Model_Building :
                 
                 model_path = self.save_model(result["model"], model_name) ## this function creates the model which acts as the input for mext self.log_mlflow
                 
-                self.log_to_mlflow(model_name, result, model_path)
-
             logger.info("")
             logger.info("=" * 50)
             logger.info("MODEL TRAINING PIPELINE COMPLETE")
@@ -236,6 +199,18 @@ class Model_Building :
             gc.collect()
             logger.info("Memory cleared")
             logger.info(f'{"=" * 50},MODEL TRAINING PIPELINE COMPLETED')
+
+
+
+             
+
+   
+
+
+
+            
+
+   
 
 
 

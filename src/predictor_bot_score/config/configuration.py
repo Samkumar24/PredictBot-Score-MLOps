@@ -8,7 +8,8 @@ import boto3
 from src.predictor_bot_score.entity import (Data_injestion_config,
                                             DataValidationConfig,DataTransformationConfig,
                                             FeatureEngineeringConfig,
-                                            ModelTrainingConfig)
+                                            ModelTrainingConfig,
+                                            ModelEvaluationConfig)
 
 class yaml_configruation:
 
@@ -102,6 +103,7 @@ class yaml_configruation:
             target_column         = config.target_column,
         )
 
+        
     def get_model_training_config(self) -> ModelTrainingConfig:
 
         config = self.config_path.model_training
@@ -119,6 +121,31 @@ class yaml_configruation:
         baseline_mae          = float(config.baseline_mae),
         promotion_criteria    = dict(config.promotion_criteria),
         mlflow_experiment     = config.mlflow.experiment_name,
-        mlflow_tracking_uri   = config.mlflow.tracking_uri
-        )
+        mlflow_tracking_uri   = config.mlflow.tracking_uri,
+    )
+
+    def get_model_evaluation_config(self) -> ModelEvaluationConfig:
+
+        config = self.config_path.model_evaluation
+        training_config = self.config_path.model_training.models
+
+        create_directories([config.model_eval_dir, config.model_eval_results])
         
+        return ModelEvaluationConfig(
+        test_data_path        = Path(config.test_data_path),
+        validation_data_path = Path(config.validation_data_path),
+        model_dir             = Path(config.model_dir),
+        model_eval_dir        = Path(config.model_eval_dir),
+        champion_path         = Path(config.champion_path),
+        model_eval_results    = Path(config.model_eval_results),
+        features              = list(config.features),
+        target_column         = config.target_column,
+        baseline_feature      = config.baseline_feature,
+        baseline_mae          = float(config.baseline_mae),
+        improvement_threshold = float(config.improvement_threshold),
+        champion_threshold    = float(config.champion_threshold),
+        spike_threshold       = float(config.spike_threshold),
+        mlflow_experiment     = config.mlflow.experiment_name,
+        mlflow_tracking_uri   = config.mlflow.tracking_uri,
+        model_training        = dict(training_config)
+    )

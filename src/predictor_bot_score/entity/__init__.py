@@ -79,4 +79,24 @@ class ModelTrainingConfig:
     mlflow_experiment     : str
     mlflow_tracking_uri   : str
 
+@dataclass(frozen=True)
+class ModelEvaluationConfig:
+    test_data_path: Path
+    validation_data_path : Path
+    model_dir: Path
+    model_eval_dir: Path
+    champion_path: Path
+    model_eval_results: Path  # Changed from report_dir to match YAML
+    features: list[str]
+    target_column: str
+    baseline_feature: str
+    baseline_mae: float
+    improvement_threshold: float
+    champion_threshold: float
+    spike_threshold: float
+    mlflow_experiment: str
+    mlflow_tracking_uri: str
+    model_training: dict
+
+
     
