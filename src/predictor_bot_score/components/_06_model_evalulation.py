@@ -46,7 +46,7 @@ class Model_evalulation:
 
     def _latest_models(self):
         try:
-            latest_folder = glob.glob(os.path.join(self.config.model_dir ,"run__*" ))
+            latest_folder = glob.glob(os.path.join(self.config.model_dir ,"model_trained__*" ))
 
             if not latest_folder:
                 raise FileNotFoundError(f"No run folders found in {self.config.model_dir}")

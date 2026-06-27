@@ -1,5 +1,6 @@
 {
     "lightgbm": {
+        "model_type": "lightgbm",
         "params": {
             "objective": "regression",
             "metric": "mae",
@@ -15,15 +16,11 @@
             "random_state": 42,
             "verbose": -1
         },
-        "metrics": {
-            "val_mae": 0.016508719832367333,
-            "val_smape": 2.0608220568842763,
-            "test_mae": 0.018283242290870402,
-            "test_smape": 2.293507581733747
-        },
-        "timestamp": "2026-06-27T16:34:31.517570"
+        "model_path": "artifacts\\Model_Building\\model_trained__2026_06_27_17\\lightgbm.pkl",
+        "timestamp": "2026-06-27T17:27:23.643524"
     },
     "xgboost": {
+        "model_type": "xgboost",
         "params": {
             "objective": "reg:absoluteerror",
             "n_estimators": 2000,
@@ -36,12 +33,7 @@
             "random_state": 42,
             "verbosity": 0
         },
-        "metrics": {
-            "val_mae": 0.016260750435210247,
-            "val_smape": 2.069741605217532,
-            "test_mae": 0.017787176430370855,
-            "test_smape": 2.2300725996959576
-        },
-        "timestamp": "2026-06-27T16:34:43.963128"
+        "model_path": "artifacts\\Model_Building\\model_trained__2026_06_27_17\\xgboost.pkl",
+        "timestamp": "2026-06-27T17:27:23.743451"
     }
 }

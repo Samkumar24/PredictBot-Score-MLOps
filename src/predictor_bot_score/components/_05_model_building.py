@@ -12,10 +12,13 @@ import glob
 import mlflow
 import lightgbm
 import pickle
+import json
 from datetime import datetime
 import sqlite3
 import gc
 from src.predictor_bot_score.entity import ModelTrainingConfig
+
+
 
 
 
@@ -130,7 +133,7 @@ class Model_Building :
             time_stamp = datetime.now().strftime("%Y_%m_%d_%H")
             
 
-            run_dir = os.path.join(path ,f'run__{time_stamp}')
+            run_dir = os.path.join(path ,f'model_trained__{time_stamp}')
             os.makedirs(run_dir , exist_ok=True)
 
             model_path = os.path.join(run_dir,f"{model_name}.pkl")
@@ -150,6 +153,30 @@ class Model_Building :
             raise
 
     # ── log to mlflow ─────────────────────────────────────
+
+    def save_report(self, report):
+
+        try:
+            logger.info("")
+            logger.info("STEP - SAVING TRAINING REPORT")
+            logger.info("-" * 50)
+
+            if not report:
+                raise ValueError("Report is empty — nothing to save")
+            
+            time_stamp = datetime.now().strftime("%Y_%m_%d_%H")
+            report_path = os.path.join(self.config.model_dir , f"Model_training_report__{time_stamp}.json")
+
+            with open(report_path, 'w') as f:
+                json.dump(report, f, indent=4)
+
+            logger.info(f"Report saved -> {report_path}")
+            logger.info("PASSED - Training report saved successfully")
+            return report_path
+
+        except Exception as e:
+            logger.error(f"Failed to save training report: {str(e)}")
+            raise
 
 
     def run(self):
@@ -173,9 +200,18 @@ class Model_Building :
             logger.info("SAVING AND LOGGING ALL MODELS")
             logger.info("=" * 50)
 
+            report = {}
             for model_name, result in trained_models.items():
                 
-                model_path = self.save_model(result["model"], model_name) ## this function creates the model which acts as the input for mext self.log_mlflow
+                model_path = self.save_model(result["model"], model_name)
+                report[model_name] = {
+                "model_type"  : result["model_type"],
+                "params"      : result["params"],
+                "model_path"  : model_path,
+                "timestamp"   : datetime.now().isoformat()
+            }
+
+            self.save_report(report) ## this function creates the model which acts as the input for mext self.log_mlflow
                 
             logger.info("")
             logger.info("=" * 50)
@@ -199,18 +235,6 @@ class Model_Building :
             gc.collect()
             logger.info("Memory cleared")
             logger.info(f'{"=" * 50},MODEL TRAINING PIPELINE COMPLETED')
-
-
-
-             
-
-   
-
-
-
-            
-
-   
 
 
 
