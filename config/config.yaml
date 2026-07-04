@@ -2,8 +2,8 @@ artifacts_root: artifacts
 
 
 data_ingestion:
-  bucket_name   : 'predict-bot-master-data'
-  file_name     :   'Cloud_fare_Master_data.csv'
+  bucket_name   : 'predict-bot-mlops'
+  file_name     : 'raw-master-data/Cloud_fare_Master_data.csv'
   raw_data      : artifacts/data_ingestion/raw_data
   ingested_data : artifacts/data_ingestion/ingested_data
 
