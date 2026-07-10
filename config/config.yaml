@@ -199,3 +199,6 @@ model_evaluation:
   mlflow:
     experiment_name : "predict-bot-training-v1"
     tracking_uri    : "sqlite:///mlflow.db"
+
+s3_config:
+  bucket_name : predict-bot-mlops

@@ -62,30 +62,7 @@ class Data_injestion:
             logger.error(f"S3 connection error: {e.response['Error']['Message']}")
             raise
 
-    def s3_downlaod_data(self):
     
-        try:
-            s3_file_name =  self.file_check() 
-            file_name = os.path.basename(s3_file_name)
-            save_path = os.path.join(self.config.raw_data,file_name)
-
-            if os.path.exists(save_path):
-                logger.info(f"{save_path}: {self.FILE_NAME}Path exists ")
-
-            else:
-                content = self.s3.download_file(
-                        Bucket=self.BUCKET_NAME,
-                        Key=self.FILE_NAME,
-                        Filename=str(save_path)
-                    )
-                logger.info(f"{self.FILE_NAME} created at path {save_path}")
-
-        except FileNotFoundError as e:
-            logger.error(f"Download failed — file not found: {e}")
-            raise
-        except ClientError as e:
-            logger.error(f"Download failed — AWS error: {e.response['Error']['Message']}")
-            raise
 
 
             
