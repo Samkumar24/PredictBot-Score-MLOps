@@ -5,85 +5,60 @@ from src.predictor_bot_score.constants import CONFIG_PATH
 from src.predictor_bot_score.entity import DataValidationConfig
 from pathlib import Path
 from datetime import datetime
+from src.predictor_bot_score.utils.src_util_s3_ import *
 import pandas as pd
 
 class Data_validation:
-    def __init__(self, config: DataValidationConfig):
+
+    def __init__(self, config : DataValidationConfig):
         self.config = config
+        self.BUCKET_NAME = self.config.bucket_name
+        self.s3 = s3_login()
         self.df     = self.read_data()
-
-    def run(self):
-        try:
-            logger.info("=" * 50)
-            logger.info("DATA VALIDATION PIPELINE STARTED")
-            logger.info("=" * 50)
-
-            results = {
-                "schema"      : self.validate_schema(),
-                "missing"     : self.validate_null_values(),
-                "volume"      : self.validate_volume(),
-                "temporal"    : self.validate_temporal_integrity(),
-                "statistical" : self.validate_statistical_drift(),
-                "range"       : self.validate_range_check(),
-            }
-
-            failed_checks = [
-                check for check, error in results.items()
-                if error is not None
-            ]
-
-            if failed_checks:
-                logger.info("-" * 50)
-                logger.info("VALIDATION ERRORS SUMMARY:")
-                for check in failed_checks:
-                    logger.error(f"  [{check.upper()}] -> {results[check]}")
-                logger.info("-" * 50)
-
-            hard_failures = [c for c in failed_checks if c in self.config.hard_fail_checks]
-            soft_failures = [c for c in failed_checks if c in self.config.soft_fail_checks]
-
-            if hard_failures:
-                logger.info("")
-                logger.error(f"HARD FAIL - checks failed: {hard_failures}")
-                logger.error("Data is being sent to quarantine.")
-                self._save_data(quarantine=True)
-                logger.info("=" * 50)
-                logger.info("DATA VALIDATION COMPLETE - QUARANTINED")
-                logger.info("=" * 50)
-                return False
-
-            if soft_failures:
-                logger.info("")
-                logger.warning(f"SOFT FAIL - warnings on: {soft_failures}")
-                logger.warning("Data passes to validated folder with warnings.")
-                self._save_data(quarantine=False)
-                logger.info("=" * 50)
-                logger.info("DATA VALIDATION COMPLETE - PASSED WITH WARNINGS")
-                logger.info("=" * 50)
-                return True
-
-            logger.info("")
-            logger.info("ALL CHECKS PASSED")
-            self._save_data(quarantine=False)
-            logger.info("=" * 50)
-            logger.info("DATA VALIDATION COMPLETE - PASSED")
-            logger.info("=" * 50)
-            return True
-
-        except Exception as e:
-            logger.error(f"Validation pipeline aborted: {str(e)}")
-            raise
+        self.pipeline_run_id = datetime.now().strftime("%Y_%m_%d_%H")
+        
+        
 
     def read_data(self):
         try:
-            logger.info(f"Attempting to read data from: {self.config.raw_data_path}")
-            raw_data = pd.read_csv(self.config.raw_data_path)
-            logger.info("Data successfully loaded into memory.")
-            return raw_data
 
-        except FileNotFoundError:
-            print("--- ALERT: The file is missing! Please check the path. ---")
-            logger.error(f"File not found at: {self.config.raw_data_path}")
+            keys = []
+
+            logger.info("=" * 50)
+            logger.info("DATA VALIDATION PIPELINE STARTED")
+            logger.info("=" * 50)
+            
+            for page in self.s3.list_objects_v2(Bucket=self.BUCKET_NAME,Prefix='combined_data')['Contents']:
+                if page.get('Key').endswith('.csv'):
+                    keys.append(page.get('Key'))
+
+            logger.info("S3 . Connection exists ")
+
+            combined_file_key = sorted(keys)[-1]
+
+
+            obj = self.s3.get_object(Bucket=self.BUCKET_NAME,Key=combined_file_key)
+            transformed_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+
+            transformed_df["timestamp"] = pd.to_datetime(transformed_df["timestamp"], utc=True)
+
+            transformed_df["bot_score"] = transformed_df["bot_score"].astype(float)
+
+            timestamp = datetime.now().strftime("%Y_%m_%d_%H")
+            out_path  = self.config.validated_data / f"_{timestamp}.csv"
+
+            
+            
+            logger.info(f"Data saved  {out_path}")
+        
+            
+            return transformed_df
+        
+        except ClientError as e:
+            raise
+            
+        except Exception as e:
+            logger.error(f"Transformation failed: {e}")
             raise
 
     def validate_schema(self):
@@ -241,25 +216,116 @@ class Data_validation:
         except Exception as e:
             logger.error(f"Range validation aborted: {str(e)}")
             return f"Range validation aborted: {str(e)}"
+        
     def _save_data(self, quarantine: bool):
         try:
             if quarantine:
                 folder = Path(self.config.quarantine_data)
                 label  = "quarantine"
             else:
-                folder = Path(self.config.validated_data)
+                folder = folder = Path(self.config.validated_data) / f"lambda_run__{self.pipeline_run_id}"
                 label  = "validated"
 
             folder.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            out_path  = folder / f"{label}.csv"
+            out_path  = folder / f"{label}_{timestamp}.csv"
 
             self.df.to_csv(out_path, index=False)
+
             logger.info(f"Data saved  {out_path}")
 
         except Exception as e:
             logger.error(f"Failed to save data: {str(e)}")
             raise
+
+    def run(self):
+        try:
+            logger.info("=" * 50)
+            logger.info("DATA VALIDATION PIPELINE STARTED")
+            logger.info("=" * 50)
+
+            results = {
+                "schema"      : self.validate_schema(),
+                "missing"     : self.validate_null_values(),
+                "volume"      : self.validate_volume(),
+                "temporal"    : self.validate_temporal_integrity(),
+                "statistical" : self.validate_statistical_drift(),
+                "range"       : self.validate_range_check(),
+            }
+
+            failed_checks = [
+                check for check, error in results.items()
+                if error is not None
+            ]
+
+            if failed_checks:
+                logger.info("-" * 50)
+                logger.info("VALIDATION ERRORS SUMMARY:")
+                for check in failed_checks:
+                    logger.error(f"  [{check.upper()}] -> {results[check]}")
+                logger.info("-" * 50)
+
+            hard_failures = [c for c in failed_checks if c in self.config.hard_fail_checks]
+            soft_failures = [c for c in failed_checks if c in self.config.soft_fail_checks]
+
+            if hard_failures:
+                logger.info("")
+                logger.error(f"HARD FAIL - checks failed: {hard_failures}")
+                logger.error("Data is being sent to quarantine.")
+                self._save_data(quarantine=True)
+                logger.info("=" * 50)
+                logger.info("DATA VALIDATION COMPLETE - QUARANTINED")
+                logger.info("=" * 50)
+                return False
+
+            if soft_failures:
+                logger.info("")
+                logger.warning(f"SOFT FAIL - warnings on: {soft_failures}")
+                logger.warning("Data passes to validated folder with warnings.")
+                self._save_data(quarantine=False)
+
+                output_key = f"data_validation/run__{self.pipeline_run_id}/validation_df.csv"
+                
+                manifest = save_manifest(output_key=output_key,pipline_id=self.pipeline_run_id)
+
+                save_file_s3(df=self.df ,output_key=output_key ,BUCKET_NAME=self.BUCKET_NAME,s3_client=self.s3)
+
+                self_s3_mainfest(manifest=manifest ,output_key=output_key,BUCKET_NAME=self.BUCKET_NAME,s3_client=self.s3)
+
+
+                self_local_save_mainfest(manifest=manifest,local_dir=self.config.validated_data,pipeline_run_id=self.pipeline_run_id)
+
+                
+                logger.info("=" * 50)
+                logger.info("DATA VALIDATION COMPLETE - PASSED WITH WARNINGS")
+                logger.info("=" * 50)
+                return True
+
+            logger.info("")
+            logger.info("ALL CHECKS PASSED")
+            self._save_data(quarantine=False)
+
+            
+            logger.info("=" * 50)
+            logger.info("DATA VALIDATION COMPLETE - PASSED")
+            logger.info("=" * 50)
+            return True
+            
+
+        except Exception as e:
+            logger.error(f"Validation pipeline aborted: {str(e)}")
+            raise
+
+
+
+        
+
+
+    
+        
+        
+        
+
     
 
     

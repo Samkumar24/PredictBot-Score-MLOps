@@ -60,7 +60,8 @@ class yaml_configruation:
             
             business_logic=config.business_logic,
             hard_fail_checks=config.hard_fail_checks,
-            soft_fail_checks=config.soft_fail_checks
+            soft_fail_checks=config.soft_fail_checks,
+            bucket_name = self.config_path.s3_config.bucket_name
         )
         
         return data_validation_config
@@ -73,7 +74,8 @@ class yaml_configruation:
 
         data_transformation_config = DataTransformationConfig(
             validated_data_path=Path(config.validated_data_path),
-            transformed_data_dir =Path(config.transformed_data)
+            transformed_data_dir =Path(config.transformed_data),
+            bucket_name = self.config_path.s3_config.bucket_name
         )
         
         return data_transformation_config
