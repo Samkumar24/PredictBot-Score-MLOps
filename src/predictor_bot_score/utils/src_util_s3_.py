@@ -39,24 +39,27 @@ def save_file_s3( df , output_key, BUCKET_NAME, s3_client):
             logger.error(f"S3 save failed: {e.response['Error']['Message']}")
             raise 
 
-def self_s3_mainfest(manifest,output_key ,BUCKET_NAME ,s3_client):
+def self_s3_mainfest(manifest, output_key ,BUCKET_NAME ,s3_client):
         try:
-            manifest_key = output_key.rsplit('.', 1)[0] + '.json'
-            
+            manifest_key = output_key.replace('.csv','maifest_.json')
+
+            json_body = json.dumps(manifest, indent=2).encode('utf-8')
+
             s3_client.put_object(
                 Bucket = BUCKET_NAME,
                 Key = manifest_key,
-                Body        = json.dumps(manifest, indent=2),
+                Body        = json_body,
                 ContentType = 'application/json'
             )
             logger.info(f"Saved (manifest) rows  s3://{BUCKET_NAME}/{output_key}")
+            return manifest_key
         except ClientError as e:
             logger.error(f"S3 save failed: {e.response['Error']['Message']}")
             raise
 
 def self_local_save_mainfest(manifest , local_dir ,pipeline_run_id):    
         try:            
-            #manifest_key = f"combined_data/run__{self.pipeline_run_id}/manifest.json"
+            
             local_dir = os.path.join(local_dir,
                                     f"lambda_run__{pipeline_run_id}")
             
