@@ -16,8 +16,9 @@
             "random_state": 42,
             "verbose": -1
         },
-        "model_path": "artifacts\\Model_Building\\model_trained__2026_06_27_17\\lightgbm.pkl",
-        "timestamp": "2026-06-27T17:27:23.643524"
+        "local_path": "artifacts\\Model_Building\\model_trained__2026_07_11_17\\lightgbm.pkl",
+        "s3_key": "model_building/model_trained__2026_07_11_17/lightgbm.pkl",
+        "timestamp": "2026-07-11T17:11:50.609364"
     },
     "xgboost": {
         "model_type": "xgboost",
@@ -33,7 +34,8 @@
             "random_state": 42,
             "verbosity": 0
         },
-        "model_path": "artifacts\\Model_Building\\model_trained__2026_06_27_17\\xgboost.pkl",
-        "timestamp": "2026-06-27T17:27:23.743451"
+        "local_path": "artifacts\\Model_Building\\model_trained__2026_07_11_17\\xgboost.pkl",
+        "s3_key": "model_building/model_trained__2026_07_11_17/xgboost.pkl",
+        "timestamp": "2026-07-11T17:13:18.961064"
     }
 }
