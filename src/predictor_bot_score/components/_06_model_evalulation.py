@@ -17,45 +17,74 @@ from pathlib import Path
 import time
 import gc
 import os
+from src.predictor_bot_score.utils.src_util_s3_ import *
 
 class Model_evalulation:
 
     def __init__(self,config : ModelEvaluationConfig):
         self.config = config
-        self.test_df = self._read_data(folder=self.config.test_data_path , prefix= "test")
-        self.val_df  = self._read_data(folder=self.config.validation_data_path , prefix= "val")
+        self.s3 = s3_login()
+        self.BUCKET_NAME = self.config.bucket_name
+        self.test_df = self._read_data(prefix= "test")
+        self.val_df  = self._read_data(prefix= "val")
 
-    def _read_data(self,folder ,prefix):
+    def _read_data(self,  prefix):
         try:
-            files = glob.glob(os.path.join(folder, f"{prefix}_*.csv"))
-            if not files :
-                raise FileNotFoundError(f"No {prefix} file found in {folder}")
+            keys = []
+            paginator = self.s3.get_paginator('list_objects_v2')
+            
+            for page in paginator.paginate(Bucket=self.BUCKET_NAME, Prefix='feature_engineering'):
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    if prefix in key and key.endswith('.csv') and obj['Size'] > 0:
+                        keys.append(key)
 
-            latest_file = max(files,key=os.path.getmtime)
-            df = pd.read_csv(latest_file)
-            logger.info(f"Test rows : {len(df)}")
+            if not keys:
+                raise FileNotFoundError(
+                    f"No {prefix} CSV found under s3://{self.BUCKET_NAME}/feature_engineering"
+                )
+            lastest_file_key = sorted(keys)[-1]
+            
+            obj = self.s3.get_object(Bucket=self.BUCKET_NAME, Key=lastest_file_key)
+            df  = pd.read_csv(io.BytesIO(obj['Body'].read()))
             return df
-        
+            
+
         except FileNotFoundError as e:
-            logger.error(f"Test file not found: {e}")
-            raise 
-        
+            logger.error(f"Model file not found: {e}")
+            raise
+
         except Exception as e:
-            logger.error(f"Failed to read test data: {str(e)}")
-            raise  
+            logger.error(f"Failed to load model: {str(e)}")
+            raise
+        
 
     def _latest_models(self):
         try:
-            latest_folder = glob.glob(os.path.join(self.config.model_dir ,"model_trained__*" ))
+            paginator = self.s3.get_paginator('list_objects_v2')
+            model_keys = []
+            for page in paginator.paginate(Bucket=self.BUCKET_NAME, Prefix='model_building'):
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    if key.endswith('.pkl') and obj['Size'] > 0:
+                        model_keys.append(key)
 
-            if not latest_folder:
-                raise FileNotFoundError(f"No run folders found in {self.config.model_dir}")
+            if not model_keys:
+                raise FileNotFoundError(
+                    f"No model pkl files found under s3://{self.BUCKET_NAME}/model_building"
+                )     
+            run_folders = {}
+            for key in model_keys:
+                folder = '/'.join(key.split('/')[:2])   # e.g. model_building/model_trained__2026_07_11_15
+                run_folders.setdefault(folder, []).append(key)
+
+                latest_folder = sorted(run_folders.keys())[-1]
+                model_keys    = run_folders[latest_folder]
+
+            logger.info(f"Loading models from: {latest_folder}")
+            logger.info(f"Found {len(model_keys)} model files")
             
-            latest_model_file = max(latest_folder , key=os.path.getmtime)
-
-            model_files = glob.glob(os.path.join(latest_model_file, "*.pkl"))
-    
-            return model_files          
+            return model_keys     
         except FileNotFoundError as e:
                 logger.error(f"Model file not found: {e}")
                 raise
@@ -169,11 +198,11 @@ class Model_evalulation:
 
             report = {}
             for model_path in self.model:
-                #print(m)
                 model_name = os.path.basename(model_path).replace(".pkl", "")
                 
-                with open(model_path , 'rb') as f:
-                    model = pickle.load(f)
+                obj   = self.s3.get_object(Bucket=self.BUCKET_NAME, Key=model_path)
+                model = pickle.loads(obj['Body'].read())
+                logger.info(f"Loaded model from S3: {model_path}")
                 
                 val_pred = model.predict(X_val)
                 val_mae = float(mean_absolute_error(y_val, val_pred))
@@ -207,17 +236,29 @@ class Model_evalulation:
                             "metrics": metrics,
                             "timestamp": datetime.now().isoformat()
                         }
-                    logger.info(f"{model_name} -> val_mae={val_mae:.6f}, test_mae={test_mae:.6f}")
+                    logger.info(f"{model_name} -- val_mae={val_mae:.6f}, test_mae={test_mae:.6f}")
                     logger.info("PASSED - logged to MLflow")
                     logger.info("-" * 50)
 
             timestamp = datetime.now().strftime("%Y_%m_%d_%H")
-            report_path = os.path.join(self.config.model_eval_results, f"Model_evaluation_report_{timestamp}.json")
+            report_name = f"Model_evaluation_report_{timestamp}.json"
+
+            report_path = os.path.join(self.config.model_eval_results, report_name)
             with open(report_path, "w") as f:
                     json.dump(report, f, indent=4)
                         
                         # Log report as an artifact in MLflow
             #mlflow.log_artifact(report_path)
+
+            s3_key = f"model_evaluation/{report_name}"
+            self.s3.put_object(
+                Bucket      = self.BUCKET_NAME,
+                Key         = s3_key,
+                Body        = json.dumps(report, indent=4),
+                ContentType = 'application/json'
+            )
+            logger.info(f"Report saved to S3 -> s3://{self.BUCKET_NAME}/{s3_key}")
+            logger.info("PASSED - MLflow logging and report generation complete")
                         
             logger.info(f"Report saved {report_path}")
             logger.info("PASSED - MLflow logging and report generation complete")
@@ -251,6 +292,15 @@ class Model_evalulation:
             self.val_df = None
             gc.collect()
             logger.info("Memory cleared")
+
+
+
+
+            
+    
+
+            
+
 
 
 

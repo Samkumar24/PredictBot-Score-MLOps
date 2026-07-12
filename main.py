@@ -9,9 +9,6 @@ from src.predictor_bot_score.logger import logger
 from src.predictor_bot_score.entity import Data_injestion_config
 from src.predictor_bot_score.config.configuration import yaml_configruation
 
-
-
-
 # --- Execution Script ---
 
 # 1. Data Ingestion Stage
@@ -30,4 +27,19 @@ logger.info("--- Stage 3: Data Transformation ---")
 transformation_config = yaml_configruation().get_data_transformation_config()
 transformation_config = Data_transformation(transformation_config)
 transformation_config.run()
+
+logger.info("--- Stage 4: Data Transformation ---")
+feature_config = yaml_configruation().get_feature_engineering_config()
+feature_config = Feature_engineering(feature_config)
+feature_config.run()
+
+logger.info("--- Stage 5: Data Transformation ---")
+model_config = yaml_configruation().get_model_training_config()
+model_config = Model_Building(model_config)
+model_config.run()
+
+logger.info("--- Stage 6: Data Transformation ---")
+model_eval_config = yaml_configruation().get_model_evaluation_config()
+model_eval_config =  Model_evalulation(model_eval_config)
+model_eval_config.run()
 

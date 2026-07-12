@@ -103,6 +103,7 @@ class yaml_configruation:
             lag_columns           = dict(config.lag_columns),
             rolling               = dict(config.rolling),
             target_column         = config.target_column,
+            bucket_name =       self.config_path.s3_config.bucket_name
         )
 
         
@@ -124,6 +125,7 @@ class yaml_configruation:
         promotion_criteria    = dict(config.promotion_criteria),
         mlflow_experiment     = config.mlflow.experiment_name,
         mlflow_tracking_uri   = config.mlflow.tracking_uri,
+        bucket_name =       self.config_path.s3_config.bucket_name
     )
 
     def get_model_evaluation_config(self) -> ModelEvaluationConfig:
@@ -149,5 +151,7 @@ class yaml_configruation:
         spike_threshold       = float(config.spike_threshold),
         mlflow_experiment     = config.mlflow.experiment_name,
         mlflow_tracking_uri   = config.mlflow.tracking_uri,
-        model_training        = dict(training_config)
+        model_training        = dict(training_config),
+        bucket_name           = self.config_path.s3_config.bucket_name,          # new
+        models                = dict(training_config)
     )

@@ -8,45 +8,53 @@ from datetime import datetime
 import glob
 import os
 from src.predictor_bot_score.config.configuration import FeatureEngineeringConfig
+from src.predictor_bot_score.utils.src_util_s3_ import *
 
 
 class Feature_engineering:
 
     def __init__(self, config: FeatureEngineeringConfig):
         self.config = config
+        self.BUCKET_NAME = self.config.bucket_name
+        self.s3 =  s3_login()
         self.data   = self.read_data()
+        self.pipeline_run_id = datetime.now().strftime("%Y_%m_%d_%H")
 
     def read_data(self):
+
         try:
-            logger.info(f"Attempting to read data from: {self.config.transformed_data_path}")
 
-            files = glob.glob(
-                os.path.join(self.config.transformed_data_path, "transformed*.csv")
-            )
+            keys = []
 
-            if not files:
-                raise FileNotFoundError(
-                    f"No transformed files found in {self.config.transformed_data_path}"
-                )
+            logger.info("=" * 50)
+            logger.info("DATA VALIDATION PIPELINE STARTED")
+            logger.info("=" * 50)
+            
+            for page in self.s3.list_objects_v2(Bucket=self.BUCKET_NAME,Prefix='data_validation')['Contents']:
+                if page.get('Key').endswith('.csv'):
+                    keys.append(page.get('Key'))
 
-            latest_file = max(files, key=os.path.getmtime)
-            logger.info(f"Latest file found: {latest_file}")
+            logger.info("S3 . Connection exists ")
 
-            data = pd.read_csv(latest_file)
-            data["timestamp"] = pd.to_datetime(data["timestamp"], utc=True)
-            data["bot_score"]  = data["bot_score"].astype(float)
+            combined_file_key = sorted(keys)[-1]
 
-            logger.info(f"Data successfully loaded - {len(data)} rows")
-            return data
 
-        except FileNotFoundError:
-            print("--- ALERT: No transformed file found. Run transformation first. ---")
-            logger.error(f"No transformed file found at: {self.config.transformed_data_path}")
+            obj = self.s3.get_object(Bucket=self.BUCKET_NAME,Key=combined_file_key)
+            transformed_val_df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+
+            transformed_val_df["timestamp"] = pd.to_datetime(transformed_val_df["timestamp"], utc=True)
+
+            transformed_val_df["bot_score"] = transformed_val_df["bot_score"].astype(float)
+            
+            return transformed_val_df
+        
+        except ClientError as e:
             raise
-
+            
         except Exception as e:
-            logger.error(f"Failed to read data: {str(e)}")
+            logger.error(f"Transformation failed: {e}")
             raise
+
 
     def build_features(self):
         try:
@@ -56,6 +64,7 @@ class Feature_engineering:
             
             logger.info("STEP 1 - LAG FEATURES")
             logger.info("-" * 50)
+
             for col_name, shift_value in self.config.lag_columns.items():
                 self.data[col_name] = self.data["bot_score"].shift(shift_value)
                 logger.info(f"Created: {col_name} (shift={shift_value})")
@@ -64,6 +73,7 @@ class Feature_engineering:
             logger.info("")
             logger.info("STEP 2 - ROLLING STD FEATURES")
             logger.info("-" * 50)
+
             for col_name, window in self.config.rolling.items():
                 self.data[col_name] = self.data["bot_score"].rolling(window).std()
                 logger.info(f"Created: {col_name} (window={window})")
@@ -88,9 +98,6 @@ class Feature_engineering:
             logger.info(f"Final columns: {final_cols}")
             logger.info("PASSED - Final columns selected")
 
-            self._save_data()
-            self._split_data()
-
             logger.info("=" * 50)
             logger.info("FEATURE ENGINEERING COMPLETE")
             logger.info("=" * 50)
@@ -99,58 +106,89 @@ class Feature_engineering:
             logger.error(f"Feature engineering failed: {str(e)}")
             raise
 
-    def _save_data(self):
-        try:
-            os.makedirs(self.config.featured_data_dir, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-            out_path  = os.path.join(
-                self.config.featured_raw_data,
-                f"featured_{timestamp}.csv"
-            )
-            self.data.to_csv(out_path, index=False)
-            logger.info(f"Data saved - {out_path}")
-
         except Exception as e:
             logger.error(f"Failed to save featured data: {str(e)}")
             raise
 
     def _split_data(self):
         try:
-            
-            
             logger.info("STEP 5 - CHRONOLOGICAL TRAIN/VAL/TEST SPLIT")
-            logger.info("-" * 50)
-
-            total     = len(self.data)
-            train_end = int(total * 0.70)
-            val_end   = int(total * 0.80)
-
-            train = self.data.iloc[:train_end]
-            val   = self.data.iloc[train_end:val_end]
-            test  = self.data.iloc[val_end:]
-
-            logger.info(f"Total rows : {total}")
-            logger.info(f"Train  70% : {len(train)} rows")
-            logger.info(f"Val    10% : {len(val)} rows")
-            logger.info(f"Test   20% : {len(test)} rows") 
-
-            version = datetime.now().strftime("%Y_%m_%d_%H_%M")
-
+            
+            # 1. Your existing splitting logic
+            total = len(self.data)
             splits = {
-                "train" : (train, self.config.train_data),
-                "val"   : (val,   self.config.val_data),
-                "test"  : (test,  self.config.test_data),
+                "train": self.data.iloc[:int(total * 0.70)],
+                "val":   self.data.iloc[int(total * 0.70):int(total * 0.80)],
+                "test":  self.data.iloc[int(total * 0.80):]
             }
 
-            for split_name , (split_df ,split_dir) in splits.items():
-                file_name = f"{split_name}_{version}.csv"
-                output_path = os.path.join(split_dir,file_name)
-                split_df.to_csv(output_path, index=False)
-            logger.info(f"Saved {split_name} --- {output_path}")
+            return splits
+        except Exception as e:
+            raise e
+        
+    
+    def run(self):
+        try:
+            self.build_features()
+            splits    = self._split_data()
+            run_folder = f"run__{self.pipeline_run_id}"
 
-            logger.info(f"Version : {version}")
-            logger.info("PASSED - Train/Val/Test split complete")
+            for name, df in splits.items():
+                if not isinstance(df, pd.DataFrame):
+                    df = pd.DataFrame(df)
+
+                # ── S3 paths — CSV and manifest are separate keys ──
+                split_folder = f"{run_folder}/{name}__{self.pipeline_run_id}"
+                csv_key      = f"feature_engineering/{split_folder}/{name}_data.csv"
+                manifest_key = f"feature_engineering/{split_folder}/{name}_manifest.json"
+
+                # ── local path — created before writing ────────────
+                local_dir = os.path.join(
+                    self.config.featured_data_dir,
+                    run_folder,
+                    name
+                )
+                os.makedirs(local_dir, exist_ok=True)   # ← create BEFORE writing
+
+                # ── build manifest ─────────────────────────────────
+                manifest = save_manifest(
+                    pipline_id = self.pipeline_run_id,
+                    output_key = csv_key
+                )
+
+                # ── save CSV to S3 ─────────────────────────────────
+                save_file_s3(
+                    df          = df,
+                    output_key  = csv_key,
+                    BUCKET_NAME = self.BUCKET_NAME,
+                    s3_client   = self.s3
+                )
+
+                # ── save manifest to S3 (separate key) ────────────
+                self_s3_mainfest(
+                    manifest    = manifest,
+                    output_key  = manifest_key,   # ← different key from CSV
+                    BUCKET_NAME = self.BUCKET_NAME,
+                    s3_client   = self.s3
+                )
+
+                # ── save CSV locally ───────────────────────────────
+                df.to_csv(os.path.join(local_dir, f"{name}_data.csv"), index=False)
+
+                # ── save manifest locally ──────────────────────────
+                with open(os.path.join(local_dir, "manifest.json"), 'w') as f:
+                    json.dump(manifest, f, indent=2)   # ← write directly, no nested subfolders
+
+                logger.info(f"Processed {name}: {len(df)} rows")
+
+            logger.info("=" * 50)
+            logger.info("FEATURE ENGINEERING PIPELINE COMPLETED")
+            logger.info("=" * 50)
 
         except Exception as e:
-            logger.error(f"Failed to save featured data: {str(e)}")
+            logger.exception(f"Critical error in Feature Engineering: {e}")
             raise
+
+
+
+        
