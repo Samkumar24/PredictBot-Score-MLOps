@@ -2,7 +2,7 @@ artifacts_root: artifacts
 
 
 data_ingestion:
-  bucket_name   : 'predict-bot-mlops'
+  bucket_name   : 'predict-bot-mlops-2026'
   file_name     : 'raw-master-data/Cloud_fare_Master_data.csv'
   raw_data      : artifacts/data_ingestion/raw_data
   ingested_data : artifacts/data_ingestion/ingested_data
@@ -201,4 +201,4 @@ model_evaluation:
     tracking_uri    : "sqlite:///mlflow.db"
 
 s3_config:
-  bucket_name : predict-bot-mlops
+  bucket_name : predict-bot-mlops-2026
