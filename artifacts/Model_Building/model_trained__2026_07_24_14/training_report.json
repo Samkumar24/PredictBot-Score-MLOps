@@ -1,0 +1,41 @@
+{
+    "lightgbm": {
+        "model_type": "lightgbm",
+        "params": {
+            "objective": "regression",
+            "metric": "mae",
+            "n_estimators": 2000,
+            "learning_rate": 0.01,
+            "num_leaves": 63,
+            "max_depth": 8,
+            "min_child_samples": 30,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9,
+            "reg_alpha": 0.5,
+            "reg_lambda": 0.5,
+            "random_state": 42,
+            "verbose": -1
+        },
+        "local_path": "artifacts\\Model_Building\\model_trained__2026_07_24_14\\lightgbm.pkl",
+        "s3_key": "model_building/model_trained__2026_07_24_14/lightgbm.pkl",
+        "timestamp": "2026-07-24T14:31:06.009912"
+    },
+    "xgboost": {
+        "model_type": "xgboost",
+        "params": {
+            "objective": "reg:absoluteerror",
+            "n_estimators": 2000,
+            "learning_rate": 0.01,
+            "max_depth": 8,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9,
+            "reg_alpha": 0.5,
+            "reg_lambda": 0.5,
+            "random_state": 42,
+            "verbosity": 0
+        },
+        "local_path": "artifacts\\Model_Building\\model_trained__2026_07_24_14\\xgboost.pkl",
+        "s3_key": "model_building/model_trained__2026_07_24_14/xgboost.pkl",
+        "timestamp": "2026-07-24T14:32:31.483755"
+    }
+}

@@ -68,6 +68,7 @@ class FeatureEngineeringConfig:
     lag_columns           : dict[str, int]
     rolling               : dict[str, int]
     target_column         : str
+    bucket_name           : str
 
 @dataclass(frozen=True)
 class ModelTrainingConfig:
@@ -82,6 +83,7 @@ class ModelTrainingConfig:
     promotion_criteria    : dict
     mlflow_experiment     : str
     mlflow_tracking_uri   : str
+    bucket_name : str
 
 @dataclass(frozen=True)
 class ModelEvaluationConfig:
@@ -101,6 +103,8 @@ class ModelEvaluationConfig:
     mlflow_experiment: str
     mlflow_tracking_uri: str
     model_training: dict
+    bucket_name           : str    # new
+    models                : dict
 
 
     

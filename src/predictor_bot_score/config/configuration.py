@@ -6,7 +6,8 @@ from pathlib import Path
 import os
 import boto3
 from src.predictor_bot_score.entity import (Data_injestion_config,
-                                            DataValidationConfig,DataTransformationConfig,
+                                            DataValidationConfig,
+                                            DataTransformationConfig,
                                             FeatureEngineeringConfig,
                                             ModelTrainingConfig,
                                             ModelEvaluationConfig)
@@ -93,18 +94,18 @@ class yaml_configruation:
         ])
 
         return FeatureEngineeringConfig(
-            transformed_data_path = Path(config.transformed_data_path),
-            featured_data_dir     = Path(config.featured_data_dir),
-            featured_raw_data     = Path(config.featured_raw_data),
-            train_data            = Path(config.train_data),
-            val_data              = Path(config.validation_data),
-            test_data             = Path(config.test_data),
-            features              = list(config.features),
-            lag_columns           = dict(config.lag_columns),
-            rolling               = dict(config.rolling),
-            target_column         = config.target_column,
-            bucket_name =       self.config_path.s3_config.bucket_name
-        )
+                    transformed_data_path = Path(config.transformed_data_path),
+                    featured_data_dir     = Path(config.featured_data_dir),
+                    featured_raw_data     = Path(config.featured_raw_data),
+                    train_data            = Path(config.train_data),
+                    val_data              = Path(config.validation_data),
+                    test_data             = Path(config.test_data),
+                    features              = list(config.features),
+                    lag_columns           = dict(config.lag_columns),
+                    rolling               = dict(config.rolling),
+                    target_column         = config.target_column,
+                    bucket_name =       self.config_path.s3_config.bucket_name
+                )
 
         
     def get_model_training_config(self) -> ModelTrainingConfig:

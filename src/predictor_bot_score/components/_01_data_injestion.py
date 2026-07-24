@@ -27,7 +27,7 @@ class Data_injestion:
         self.s3 =  s3_login()
         self.BUCKET_NAME = self.config.bucket_name
         self.FILE_NAME = self.config.file_name
-        self.pipeline_run_id = datetime.now().strftime("%Y_%m_%d_%H_%M")
+        self.pipeline_run_id = datetime.now().strftime("%Y_%m_%d_%H")
 
     def connection_check(self):
 
@@ -89,7 +89,7 @@ class Data_injestion:
 
     def lambda_conmbine_files(self,key):
         try:
-            obj = self.s3.get_object(Bucket='predict-bot-mlops',Key=key)
+            obj = self.s3.get_object(Bucket=self.BUCKET_NAME,Key=key)
             df = pd.read_csv(io.BytesIO(obj['Body'].read()))
             df = df.rename(columns={'value':'bot_score'})
 
@@ -114,8 +114,7 @@ class Data_injestion:
             
             combined = pd.concat(dfs, ignore_index=True)
             logger.info(f"Successfully combined {len(dfs)} files.")
-
-            logger.info(f"Successfully combined {len(dfs)} files. ")
+            
             return combined
 
         except Exception as e:
@@ -177,6 +176,16 @@ class Data_injestion:
         except Exception as e:
             logger.error(f"Ingestion failed: {e}")
             raise
+
+
+    
+
+
+
+            
+
+
+
 
 
     

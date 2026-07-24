@@ -17,6 +17,7 @@ from datetime import datetime
 import sqlite3
 import gc
 from src.predictor_bot_score.entity import ModelTrainingConfig
+from src.predictor_bot_score.utils.src_util_s3_ import *
 
 
 
@@ -25,40 +26,63 @@ from src.predictor_bot_score.entity import ModelTrainingConfig
 class Model_Building :
 
     def __init__(self, config : ModelTrainingConfig):
-        self.config = config
-        self.train , self.val = self._read_data()
-        self.batch_id = datetime.now().strftime("%Y_%m_%d_%H") 
-
-    def _get_files(self , folder:Path ,prefix :str):
-        files = glob.glob(os.path.join(folder ,f"{prefix}_*.csv"))
-        if not files:
-            raise FileNotFoundError(f"No {prefix} file found in {folder}")
-        return max(files , key=os.path.getmtime)
-    
+        self.config      = config
+        self.s3          = s3_login()
+        self.BUCKET_NAME = self.config.bucket_name
+        self.batch_id    = datetime.now().strftime("%Y_%m_%d_%H")
+        self.train, self.val = self._read_data()
 
     def _read_data(self):
         try:
             logger.info("=" * 50)
-            logger.info("Reading train /  test splits")
+            logger.info("Reading train / val splits from S3")
             logger.info("=" * 50)
 
-            train_file = self._get_files(self.config.train_data_path, "train")
-            val_file   = self._get_files(self.config.val_data_path,   "val")
+            train_key = self._get_latest_key("feature_engineering", "train")
+            val_key   = self._get_latest_key("feature_engineering", "val")
 
-            train = pd.read_csv(train_file)
-            val   = pd.read_csv(val_file)
-            
+            train = self._read_csv_from_s3(key=train_key)
+            val   = self._read_csv_from_s3(key=val_key)
+
             logger.info(f"Train : {len(train)} rows")
             logger.info(f"Val   : {len(val)} rows")
-
             return train, val
 
-        except FileNotFoundError as e:
-            logger.error(f"Split file not found: {e}")
+        except Exception as e:
+            logger.error(f"Failed to read splits from S3: {e}")
+            raise
+    
+    def _get_latest_key(self, prefix, split_name):
+        """Find the latest CSV key for train/val/test under a prefix."""
+        try:
+            paginator = self.s3.get_paginator('list_objects_v2')
+            keys = []
+            for page in paginator.paginate(Bucket=self.BUCKET_NAME, Prefix=prefix):
+                for obj in page.get('Contents', []):
+                    key = obj['Key']
+                    if split_name in key and key.endswith('.csv') :
+                        keys.append(key)
+
+            if not keys:
+                raise FileNotFoundError(
+                    f"No {split_name} CSV found under s3://{self.BUCKET_NAME}/{prefix}"
+                )
+
+            latest = sorted(keys)[-1]
+            logger.info(f"Found {split_name} file: {latest}")
+            return latest
+
+        except ClientError as e:
+            logger.error(f"S3 error listing {prefix}: {e.response['Error']['Message']}")
             raise
 
-        except Exception as e:
-            logger.error(f"Failed to read splits: {str(e)}")
+    def _read_csv_from_s3(self, key):
+        try:
+            obj = self.s3.get_object(Bucket=self.BUCKET_NAME, Key=key)
+            df  = pd.read_csv(io.BytesIO(obj['Body'].read()))
+            return df
+        except ClientError as e:
+            logger.error(f"Failed to read {key}: {e.response['Error']['Message']}")
             raise
 
     def prepare_data(self ,df :pd.DataFrame):
@@ -129,53 +153,74 @@ class Model_Building :
     def save_model(self,model , model_name):
 
         try:
-            path = self.config.model_dir
-            time_stamp = datetime.now().strftime("%Y_%m_%d_%H")
+            
+            run_folder = f"model_trained__{self.batch_id}"
             
 
-            run_dir = os.path.join(path ,f'model_trained__{time_stamp}')
-            os.makedirs(run_dir , exist_ok=True)
+            local_dir  = os.path.join(self.config.model_dir, run_folder)
+            os.makedirs(local_dir, exist_ok=True)
+            local_path = os.path.join(local_dir, f"{model_name}.pkl")
 
-            model_path = os.path.join(run_dir,f"{model_name}.pkl")
-            
-            with open(model_path ,"wb") as f:
-                pickle.dump(model , f)
-                f.close()
-        
-            logger.info(f"Model saved  {model_path}")
+            with open(local_path, "wb") as f:
+                pickle.dump(model, f)
+            logger.info(f"Model saved locally -> {local_path}")
+
+        # ── s3 save ────────────────────────────────────────
+            s3_key = f"model_building/{run_folder}/{model_name}.pkl"
+            with open(local_path, "rb") as f:
+                self.s3.put_object(
+                    Bucket      = self.BUCKET_NAME,
+                    Key         = s3_key,
+                    Body        = f.read(),
+                    ContentType = 'application/octet-stream'
+                )
+            logger.info(f"Model saved to S3  s3://{self.BUCKET_NAME}/{s3_key}")
+
             logger.info("PASSED - Model saved")
             logger.info("-" * 50)
-
-            return model_path
+            return local_path, s3_key
 
         except Exception as e:
-            logger.error(f"Failed to save model: {str(e)}")
+            logger.error(f"Failed to save model: {e}")
             raise
 
     # ── log to mlflow ─────────────────────────────────────
 
     def save_report(self, report):
-
         try:
             logger.info("")
             logger.info("STEP - SAVING TRAINING REPORT")
             logger.info("-" * 50)
 
             if not report:
-                raise ValueError("Report is empty — nothing to save")
-            
-            time_stamp = datetime.now().strftime("%Y_%m_%d_%H")
-            report_path = os.path.join(self.config.model_dir , f"Model_training_report__{time_stamp}.json")
+                raise ValueError("Report is empty")
 
-            with open(report_path, 'w') as f:
+            run_folder = f"model_trained__{self.batch_id}"
+
+            # ── local save ─────────────────────────────────────
+            local_dir  = os.path.join(self.config.model_dir, run_folder)
+            os.makedirs(local_dir, exist_ok=True)
+            local_path = os.path.join(local_dir, "training_report.json")
+
+            with open(local_path, 'w') as f:
                 json.dump(report, f, indent=4)
+            logger.info(f"Report saved locally -> {local_path}")
 
-            logger.info(f"Report saved -> {report_path}")
-            logger.info("PASSED - Training report saved successfully")
-            return report_path
+            # ── s3 save ────────────────────────────────────────
+            s3_key = f"model_building/{run_folder}/training_report.json"
+            self.s3.put_object(
+                Bucket      = self.BUCKET_NAME,
+                Key         = s3_key,
+                Body        = json.dumps(report, indent=4),
+                ContentType = 'application/json'
+            )
+            logger.info(f"Report saved to S3 - s3://{self.BUCKET_NAME}/{s3_key}")
+
+            logger.info("PASSED - Training report saved")
+            return local_path, s3_key
 
         except Exception as e:
-            logger.error(f"Failed to save training report: {str(e)}")
+            logger.error(f"Failed to save training report: {e}")
             raise
 
 
@@ -202,14 +247,14 @@ class Model_Building :
 
             report = {}
             for model_name, result in trained_models.items():
-                
-                model_path = self.save_model(result["model"], model_name)
+                local_path, s3_key = self.save_model(result["model"], model_name)  # ← unpack two
                 report[model_name] = {
-                "model_type"  : result["model_type"],
-                "params"      : result["params"],
-                "model_path"  : model_path,
-                "timestamp"   : datetime.now().isoformat()
-            }
+                    "model_type" : result["model_type"],
+                    "params"     : result["params"],
+                    "local_path" : local_path,
+                    "s3_key"     : s3_key,
+                    "timestamp"  : datetime.now().isoformat()
+                }
 
             self.save_report(report) ## this function creates the model which acts as the input for mext self.log_mlflow
                 
@@ -235,6 +280,18 @@ class Model_Building :
             gc.collect()
             logger.info("Memory cleared")
             logger.info(f'{"=" * 50},MODEL TRAINING PIPELINE COMPLETED')
+
+
+
+             
+
+   
+
+
+
+            
+
+   
 
 
 
